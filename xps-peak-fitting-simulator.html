@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XPS Peak Fitting Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; }
+        .chart-container { position: relative; height: 75vh; width: 100%; }
+        input[type=range] { width: 100%; cursor: pointer; }
+        input[type=number] { 
+            -moz-appearance: textfield;
+            outline: none;
+        }
+        .tab-btn.active { background-color: #3b82f6; color: white; border-color: #3b82f6; }
+        .tab-btn { background-color: #f1f5f9; color: #64748b; border-color: #e2e8f0; }
+        .btn-export { background-color: #10b981; color: white; transition: background-color 0.2s; }
+        .btn-export:hover { background-color: #059669; }
+    </style>
+</head>
+<body class="p-4 md:p-6">
+    <div class="max-w-7xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+        
+        <div class="bg-slate-800 text-white p-4">
+            <h1 class="text-2xl font-bold">XPS Peak Fitting Simulator</h1>
+            <p class="text-sm text-slate-300 mt-1">Area-based, Asymmetry-supported, Metadata & Screenshot Export Enabled</p>
+        </div>
+
+        <div class="p-4 grid grid-cols-1 lg:grid-cols-4 gap-6">
+            
+            <!-- Left Panel: Controls -->
+            <div class="lg:col-span-1 flex flex-col gap-4 overflow-y-auto max-h-[80vh] pr-2">
+                
+                <!-- 1. Data Input -->
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                    <label class="block text-sm font-bold text-blue-900 mb-2">1. Data File (.txt)</label>
+                    <input type="file" id="fileInput" accept=".txt,.csv" class="block w-full text-sm text-slate-500 file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer">
+                </div>
+
+                <div id="errorMsg" class="text-red-600 text-sm hidden font-bold bg-red-100 border border-red-300 p-2 rounded"></div>
+
+                <div id="controlsPanel" class="opacity-50 pointer-events-none transition-opacity flex flex-col gap-4">
+                    
+                    <!-- 2. Peak Settings -->
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="font-bold text-slate-700">2. Peak Settings</h3>
+                            <div class="flex items-center gap-2">
+                                <label class="text-sm font-bold text-slate-600">Count:</label>
+                                <select id="numPeaks" class="border border-slate-300 rounded p-1 text-sm bg-white font-bold text-blue-700 outline-none">
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div id="peakTabs" class="flex flex-wrap gap-1 mb-4"></div>
+                        
+                        <div id="peakSliders">
+                            <div class="mb-3">
+                                <label class="flex justify-between items-center text-xs font-bold text-slate-600 mb-1">
+                                    <span>Position</span>
+                                    <div class="flex items-center gap-1">
+                                        <input type="number" id="numPos" step="0.01" class="w-20 text-right border border-slate-300 rounded px-1 py-0.5 text-blue-700 font-mono">
+                                        <span class="text-[10px] text-slate-400">eV</span>
+                                    </div>
+                                </label>
+                                <input type="range" id="sliderPos" step="0.01">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="flex justify-between items-center text-xs font-bold text-slate-600 mb-1">
+                                    <span>Area</span>
+                                    <div class="flex items-center gap-1">
+                                        <input type="number" id="numArea" step="any" class="w-20 text-right border border-slate-300 rounded px-1 py-0.5 text-blue-700 font-mono">
+                                    </div>
+                                </label>
+                                <input type="range" id="sliderArea" step="any">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="flex justify-between items-center text-xs font-bold text-slate-600 mb-1">
+                                    <span>FWHM</span>
+                                    <div class="flex items-center gap-1">
+                                        <input type="number" id="numFWHM" min="0.1" max="10.0" step="0.01" class="w-20 text-right border border-slate-300 rounded px-1 py-0.5 text-blue-700 font-mono">
+                                        <span class="text-[10px] text-slate-400">eV</span>
+                                    </div>
+                                </label>
+                                <input type="range" id="sliderFWHM" min="0.1" max="10.0" step="0.01">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="flex justify-between items-center text-xs font-bold text-slate-600 mb-1">
+                                    <span>G/L Mix (0-1)</span>
+                                    <div class="flex items-center gap-1">
+                                        <input type="number" id="numMix" min="0" max="1" step="0.01" class="w-16 text-right border border-slate-300 rounded px-1 py-0.5 text-blue-700 font-mono">
+                                    </div>
+                                </label>
+                                <input type="range" id="sliderMix" min="0" max="1" step="0.01">
+                            </div>
+
+                            <div class="mb-2 bg-yellow-50 p-2 rounded border border-yellow-200">
+                                <label class="flex justify-between items-center text-xs font-bold text-yellow-800 mb-1">
+                                    <span>Asymmetry (α)</span>
+                                    <div class="flex items-center gap-1">
+                                        <input type="number" id="numAlpha" min="0" max="0.85" step="0.01" class="w-16 text-right border border-yellow-300 rounded px-1 py-0.5 text-yellow-900 font-mono focus:ring-yellow-500">
+                                    </div>
+                                </label>
+                                <input type="range" id="sliderAlpha" min="0" max="0.85" step="0.01" class="accent-yellow-600">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. BG Settings -->
+                    <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
+                        <h3 class="font-bold text-indigo-800 mb-3 border-b border-indigo-200 pb-1">3. Background</h3>
+                        <div class="mb-3">
+                            <label class="flex justify-between items-center text-xs font-bold text-indigo-700 mb-1">
+                                <span>BG Step Ratio</span>
+                                <div class="flex items-center gap-1">
+                                    <input type="number" id="numBgStep" min="0" max="2" step="0.01" value="1" class="w-16 text-right border border-indigo-200 rounded px-1 py-0.5 text-indigo-700 font-mono">
+                                </div>
+                            </label>
+                            <input type="range" id="sliderBgStep" min="0" max="2" step="0.01" value="1">
+                        </div>
+                        <div>
+                            <label class="flex justify-between items-center text-xs font-bold text-indigo-700 mb-1">
+                                <span>BG Offset</span>
+                                <div class="flex items-center gap-1">
+                                    <input type="number" id="numBgOffset" step="1" value="0" class="w-20 text-right border border-indigo-200 rounded px-1 py-0.5 text-indigo-700 font-mono">
+                                    <span class="text-[10px] text-indigo-400">Cts</span>
+                                </div>
+                            </label>
+                            <input type="range" id="sliderBgOffset" step="1" value="0">
+                        </div>
+                    </div>
+
+                    <!-- 4. Data Export -->
+                    <div class="bg-emerald-50 p-4 rounded-lg border border-emerald-200 mb-8">
+                        <h3 class="font-bold text-emerald-800 mb-2 border-b border-emerald-200 pb-1">4. Data Export</h3>
+                        
+                        <!-- Comment Field (Updated to Textarea, Max 300) -->
+                        <div class="mb-3">
+                            <label class="block text-[11px] font-bold text-emerald-700 mb-1">Export Comments (Max 300 chars)</label>
+                            <textarea id="exportComments" maxlength="300" rows="3" placeholder="e.g., Sample A, C1s peak fitting results. The asymmetry parameter was introduced to model the metallic tailing..." 
+                                class="w-full text-xs p-1.5 border border-emerald-300 rounded font-sans focus:ring-emerald-500 focus:border-emerald-500 outline-none resize-none"></textarea>
+                        </div>
+
+                        <div class="flex flex-col gap-2">
+                            <button onclick="downloadData('bg.txt', currentBgData)" class="btn-export w-full py-1.5 px-3 rounded text-sm font-bold shadow-sm">
+                                📉 Save BG (bg.txt)
+                            </button>
+                            <button onclick="downloadData('total.txt', currentTotalData)" class="btn-export w-full py-1.5 px-3 rounded text-sm font-bold shadow-sm">
+                                📈 Save Total Fit (total.txt)
+                            </button>
+                            <div id="peakExportContainer" class="grid grid-cols-2 gap-2">
+                                <!-- Peak export buttons generated here -->
+                            </div>
+                            <!-- Screenshot Button -->
+                            <button onclick="downloadScreenshot()" class="mt-2 bg-indigo-500 hover:bg-indigo-600 text-white w-full py-2 px-3 rounded text-sm font-bold shadow-sm transition-colors">
+                                📸 Save Screenshot (.png)
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Right Panel: Chart -->
+            <div class="lg:col-span-3 flex flex-col">
+                <div class="chart-container border border-slate-200 rounded-lg p-2 bg-white shadow-inner">
+                    <canvas id="xpsChart"></canvas>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        let xpsChart = null;
+        let rawData = [], sortedX = [], sortedY = [], bgY = [];
+        let dataMaxX = 0, dataMinX = 0, dataMaxY = 0, dataPeakX = 0;
+
+        let currentBgData = [];
+        let currentTotalData = [];
+        let currentPeaksData = [];
+
+        const MAX_PEAKS = 5;
+        let currentPeakCount = 1;
+        let activePeakIndex = 0;
+        let peakParams = [];
+
+        const peakColors = ['rgba(37, 99, 235,', 'rgba(16, 185, 129,', 'rgba(245, 158, 11,', 'rgba(139, 92, 246,', 'rgba(236, 72, 153,'];
+
+        const fileInput = document.getElementById('fileInput');
+        const controlsPanel = document.getElementById('controlsPanel');
+        const numPeaksSelect = document.getElementById('numPeaks');
+        const peakTabsContainer = document.getElementById('peakTabs');
+        const peakExportContainer = document.getElementById('peakExportContainer');
+        
+        const s_Pos = document.getElementById('sliderPos'), n_Pos = document.getElementById('numPos');
+        const s_Area = document.getElementById('sliderArea'), n_Area = document.getElementById('numArea');
+        const s_FWHM = document.getElementById('sliderFWHM'), n_FWHM = document.getElementById('numFWHM');
+        const s_Mix = document.getElementById('sliderMix'), n_Mix = document.getElementById('numMix');
+        const s_Alpha = document.getElementById('sliderAlpha'), n_Alpha = document.getElementById('numAlpha');
+        const s_BgStep = document.getElementById('sliderBgStep'), n_BgStep = document.getElementById('numBgStep');
+        const s_BgOffset = document.getElementById('sliderBgOffset'), n_BgOffset = document.getElementById('numBgOffset');
+
+        // Screenshot Download Function
+        function downloadScreenshot() {
+            if (!xpsChart) return;
+            // Get the base64 image data from canvas
+            const url = xpsChart.canvas.toDataURL('image/png');
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'xps_fitting_result.png';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        // Data Export Function with Metadata
+        function downloadData(filename, dataArray) {
+            if (!dataArray || dataArray.length === 0) return;
+            
+            // Textarea allows line breaks, replace them with spaces or handle them in comments
+            const userCommentRaw = document.getElementById('exportComments').value.trim();
+            const userComment = userCommentRaw ? userCommentRaw.replace(/\n/g, ' / ') : 'None';
+            
+            const bgStepVal = n_BgStep.value;
+            const bgOffsetVal = n_BgOffset.value;
+            
+            let content = `# ==========================================\n`;
+            content += `# XPS PEAK FITTING METADATA REPORT\n`;
+            content += `# ==========================================\n`;
+            content += `# Target File : ${filename}\n`;
+            content += `# Comments    : ${userComment}\n`;
+            content += `# Background  : Shirley (Step Ratio = ${parseFloat(bgStepVal).toFixed(2)}, Offset = ${bgOffsetVal} Cts)\n`;
+            content += `# Active Peaks: ${currentPeakCount}\n`;
+            content += `# ------------------------------------------\n`;
+            
+            for(let i = 0; i < currentPeakCount; i++) {
+                let p = peakParams[i];
+                content += `#  [Peak ${i+1}] \n`;
+                content += `#    Position          : ${parseFloat(p.pos).toFixed(2)} eV\n`;
+                content += `#    Area (Intensity)  : ${Math.round(p.area)}\n`;
+                content += `#    FWHM              : ${parseFloat(p.fwhm).toFixed(2)} eV\n`;
+                content += `#    G/L Mix Ratio     : ${parseFloat(p.mix).toFixed(2)} (Gaussian: ${Math.round(p.mix*100)}%)\n`;
+                content += `#    Asymmetry (alpha) : ${parseFloat(p.alpha).toFixed(2)}\n`;
+                content += `# ------------------------------------------\n`;
+            }
+            content += `\nBinding Energy (eV), Intensity (Counts)\n`;
+            
+            for(let pt of dataArray) {
+                content += `${pt.x.toFixed(2)}, ${pt.y.toFixed(2)}\n`;
+            }
+            
+            const blob = new Blob([content], {type: 'text/plain;charset=utf-8'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function updateExportButtons() {
+            peakExportContainer.innerHTML = '';
+            for(let i = 0; i < currentPeakCount; i++) {
+                let btn = document.createElement('button');
+                btn.className = "btn-export py-1 px-2 rounded text-xs font-bold shadow-sm";
+                btn.textContent = `Save Peak ${i+1}`;
+                btn.onclick = () => downloadData(`peak${i+1}.txt`, currentPeaksData[i]);
+                peakExportContainer.appendChild(btn);
+            }
+        }
+
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            document.getElementById('errorMsg').classList.add('hidden');
+            const reader = new FileReader();
+            reader.onload = (e) => processData(e.target.result);
+            reader.readAsText(file);
+        });
+
+        numPeaksSelect.addEventListener('change', function(e) {
+            let newCount = parseInt(e.target.value);
+            for(let i = currentPeakCount; i < newCount; i++) {
+                peakParams[i].pos = dataPeakX + (i * 0.5);
+                peakParams[i].area = calculateArea(dataMaxY * 0.4, 1.5, 0.5);
+                peakParams[i].alpha = 0; 
+            }
+            currentPeakCount = newCount;
+            if(activePeakIndex >= currentPeakCount) activePeakIndex = currentPeakCount - 1;
+            renderTabs();
+            syncUItoActivePeak();
+            updateFit();
+            updateExportButtons();
+        });
+
+        function calculateArea(height, fwhm, mix) {
+            let w = fwhm / 2;
+            let g_factor = Math.sqrt(Math.PI / Math.LN2);
+            let l_factor = Math.PI;
+            return height * w * (mix * g_factor + (1 - mix) * l_factor);
+        }
+
+        function calculateHeightFromArea(area, fwhm, mix) {
+            let w = fwhm / 2 || 0.001;
+            let g_factor = Math.sqrt(Math.PI / Math.LN2);
+            let l_factor = Math.PI;
+            return area / (w * (mix * g_factor + (1 - mix) * l_factor));
+        }
+
+        function processData(text) {
+            const lines = text.split('\n');
+            let tempPoints = [];
+            for (let line of lines) {
+                const parts = line.trim().split(/[,\t\s]+/);
+                if (parts.length >= 2) {
+                    const x = parseFloat(parts[0]), y = parseFloat(parts[1]);
+                    if (!isNaN(x) && !isNaN(y)) tempPoints.push({ x, y });
+                }
+            }
+
+            if (tempPoints.length === 0) {
+                document.getElementById('errorMsg').innerHTML = "Error: No valid numerical data found.";
+                document.getElementById('errorMsg').classList.remove('hidden');
+                return;
+            }
+
+            tempPoints.sort((a, b) => b.x - a.x);
+            sortedX = tempPoints.map(p => p.x);
+            sortedY = tempPoints.map(p => p.y);
+            rawData = tempPoints;
+
+            dataMaxX = sortedX[0]; dataMinX = sortedX[0];
+            dataMaxY = sortedY[0]; dataPeakX = sortedX[0];
+            for(let i=0; i < sortedX.length; i++){
+                if(sortedX[i] > dataMaxX) dataMaxX = sortedX[i];
+                if(sortedX[i] < dataMinX) dataMinX = sortedX[i];
+                if(sortedY[i] > dataMaxY){ dataMaxY = sortedY[i]; dataPeakX = sortedX[i]; }
+            }
+
+            let initialArea = calculateArea(dataMaxY * 0.8, 1.5, 0.5);
+
+            peakParams = Array.from({length: MAX_PEAKS}, () => ({
+                pos: dataPeakX, area: initialArea, fwhm: 1.5, mix: 0.5, alpha: 0
+            }));
+
+            let maxBound = Math.max(dataMaxX, dataMinX);
+            let minBound = Math.min(dataMaxX, dataMinX);
+            s_Pos.max = maxBound; s_Pos.min = minBound;
+            n_Pos.max = maxBound; n_Pos.min = minBound;
+            
+            let maxArea = dataMaxY * 20;
+            s_Area.min = 0; s_Area.max = maxArea;
+            n_Area.min = 0; n_Area.max = maxArea;
+            
+            s_BgStep.value = 1; n_BgStep.value = 1;
+            let offRange = Math.round(dataMaxY * 0.3) || 100;
+            s_BgOffset.min = -offRange; s_BgOffset.max = offRange; 
+            s_BgOffset.value = 0; n_BgOffset.value = 0;
+
+            numPeaksSelect.value = "1";
+            currentPeakCount = 1;
+            activePeakIndex = 0;
+            
+            renderTabs();
+            syncUItoActivePeak();
+            controlsPanel.classList.remove('opacity-50', 'pointer-events-none');
+            updateFit();
+            updateExportButtons();
+        }
+
+        function renderTabs() {
+            peakTabsContainer.innerHTML = '';
+            for(let i = 0; i < currentPeakCount; i++) {
+                let btn = document.createElement('button');
+                btn.className = `tab-btn px-3 py-1 text-xs font-bold rounded border transition-colors ${i === activePeakIndex ? 'active' : ''}`;
+                btn.textContent = `Peak ${i + 1}`;
+                btn.onclick = () => {
+                    activePeakIndex = i;
+                    renderTabs();
+                    syncUItoActivePeak();
+                };
+                peakTabsContainer.appendChild(btn);
+            }
+        }
+
+        function syncUItoActivePeak() {
+            const p = peakParams[activePeakIndex];
+            s_Pos.value = p.pos; n_Pos.value = parseFloat(p.pos).toFixed(2);
+            s_Area.value = p.area; n_Area.value = Math.round(p.area);
+            s_FWHM.value = p.fwhm; n_FWHM.value = parseFloat(p.fwhm).toFixed(2);
+            s_Mix.value = p.mix; n_Mix.value = parseFloat(p.mix).toFixed(2);
+            s_Alpha.value = p.alpha; n_Alpha.value = parseFloat(p.alpha).toFixed(2);
+        }
+
+        const peakControls = [
+            { slider: s_Pos, number: n_Pos, key: 'pos', isInt: false },
+            { slider: s_Area, number: n_Area, key: 'area', isInt: true },
+            { slider: s_FWHM, number: n_FWHM, key: 'fwhm', isInt: false },
+            { slider: s_Mix, number: n_Mix, key: 'mix', isInt: false },
+            { slider: s_Alpha, number: n_Alpha, key: 'alpha', isInt: false }
+        ];
+
+        peakControls.forEach(ctrl => {
+            ctrl.slider.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                peakParams[activePeakIndex][ctrl.key] = val;
+                ctrl.number.value = ctrl.isInt ? Math.round(val) : val.toFixed(2);
+                updateFit();
+            });
+            ctrl.number.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                if (isNaN(val)) return;
+                peakParams[activePeakIndex][ctrl.key] = val;
+                ctrl.slider.value = val;
+                updateFit();
+            });
+        });
+
+        const bgControls = [
+            { slider: s_BgStep, number: n_BgStep, isInt: false },
+            { slider: s_BgOffset, number: n_BgOffset, isInt: true }
+        ];
+
+        bgControls.forEach(ctrl => {
+            ctrl.slider.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                ctrl.number.value = ctrl.isInt ? Math.round(val) : val.toFixed(2);
+                updateFit();
+            });
+            ctrl.number.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                if (isNaN(val)) return;
+                ctrl.slider.value = val;
+                updateFit();
+            });
+        });
+
+        function calculateShirleyBG(x, y, stepRatio, offset) {
+            const n = x.length; let bg = [...y];
+            if(n < 2) return bg;
+            const I_start = y[0] + offset, I_end = y[n - 1] + offset;
+            for (let iter = 0; iter < 3; iter++) {
+                let areaTotal = 0, area = new Array(n).fill(0);
+                for (let i = n - 2; i >= 0; i--) {
+                    let dy = Math.max(0, y[i] - bg[i]);
+                    areaTotal += dy * Math.abs(x[i] - x[i+1]);
+                    area[i] = areaTotal;
+                }
+                for (let i = 0; i < n; i++) {
+                    let ratio = areaTotal === 0 ? (n - 1 - i) / (n - 1) : area[i] / areaTotal;
+                    bg[i] = I_end + (I_start - I_end) * stepRatio * ratio;
+                }
+            }
+            return bg;
+        }
+
+        function calcPseudoVoigtFromArea(x, p) {
+            let dx = x - p.pos;
+            let base_w = p.fwhm / 2 || 0.001;
+            let w = base_w * (1 + p.alpha * Math.tanh(dx / base_w));
+            
+            let height = calculateHeightFromArea(p.area, p.fwhm, p.mix);
+            let g = Math.exp(-Math.LN2 * Math.pow(dx / w, 2));
+            let l = 1 / (1 + Math.pow(dx / w, 2));
+            return height * (p.mix * g + (1 - p.mix) * l);
+        }
+
+        function updateFit() {
+            let bgStepVal = parseFloat(n_BgStep.value) || 0;
+            let bgOffsetVal = parseFloat(n_BgOffset.value) || 0;
+
+            bgY = calculateShirleyBG(sortedX, sortedY, bgStepVal, bgOffsetVal);
+            
+            currentTotalData = [];
+            currentPeaksData = Array.from({length: currentPeakCount}, () => []);
+
+            for (let i = 0; i < sortedX.length; i++) {
+                const currentX = sortedX[i];
+                const currentBG = bgY[i];
+                let totalY = currentBG;
+                
+                for(let p = 0; p < currentPeakCount; p++) {
+                    let pY = calcPseudoVoigtFromArea(currentX, peakParams[p]);
+                    totalY += pY;
+                    currentPeaksData[p].push({ x: currentX, y: currentBG + pY });
+                }
+                currentTotalData.push({ x: currentX, y: totalY });
+            }
+
+            currentBgData = sortedX.map((x, i) => ({ x, y: bgY[i] }));
+            drawChart(rawData, currentBgData, currentTotalData, currentPeaksData);
+        }
+
+        function drawChart(raw, bg, total, peaks) {
+            const ctx = document.getElementById('xpsChart').getContext('2d');
+            if (xpsChart) xpsChart.destroy();
+
+            let datasets = [
+                { label: 'Raw Data', data: raw, borderColor: '#475569', backgroundColor: '#475569', borderWidth: 0, pointRadius: 2, pointHoverRadius: 4, showLine: false, order: 1 },
+                { label: 'Total Fit', data: total, borderColor: '#ef4444', borderWidth: 2, pointRadius: 0, fill: false, tension: 0.1, order: 2 },
+                { label: 'Shirley BG', data: bg, borderColor: '#9ca3af', borderDash: [5, 5], borderWidth: 2, pointRadius: 0, fill: false, tension: 0.1, order: 10 }
+            ];
+
+            for(let i = 0; i < currentPeakCount; i++) {
+                datasets.push({
+                    label: `Peak ${i+1}`,
+                    data: peaks[i],
+                    borderColor: `${peakColors[i]} 1)`,
+                    backgroundColor: `${peakColors[i]} 0.2)`,
+                    borderWidth: 1,
+                    pointRadius: 0,
+                    fill: true,
+                    tension: 0.1,
+                    order: 3 + i
+                });
+            }
+
+            xpsChart = new Chart(ctx, {
+                type: 'line',
+                data: { datasets: datasets },
+                plugins: [{
+                    // Plugin to fill the background with white color before saving to PNG
+                    id: 'custom_canvas_background_color',
+                    beforeDraw: (chart) => {
+                        const ctx = chart.canvas.getContext('2d');
+                        ctx.save();
+                        ctx.globalCompositeOperation = 'destination-over';
+                        ctx.fillStyle = 'white';
+                        ctx.fillRect(0, 0, chart.width, chart.height);
+                        ctx.restore();
+                    }
+                }],
+                options: {
+                    responsive: true, maintainAspectRatio: false, animation: false, interaction: { mode: 'index', intersect: false },
+                    plugins: { legend: { position: 'top' } },
+                    scales: {
+                        x: { type: 'linear', position: 'bottom', title: { display: true, text: 'Binding Energy (eV)', font: { weight: 'bold' } }, reverse: true },
+                        y: { title: { display: true, text: 'Intensity (Counts)', font: { weight: 'bold' } }, min: 0 }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
