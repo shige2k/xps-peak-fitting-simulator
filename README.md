@@ -13,4 +13,4 @@ An area-based XPS peak fitting simulator supporting Shirley background and asymm
 
 ## Live Demo
 You can try the live simulator here:
-[https://shige2k.github.io/xps-peak-fitting-simulator/xps-peak-fitting-simulator.html](https://ユーザー名.github.io/xps-peak-fitting-simulator/)
+[https://shige2k.github.io/xps-peak-fitting-simulator/](https://ユーザー名.github.io/xps-peak-fitting-simulator/)
